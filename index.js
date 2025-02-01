@@ -12,6 +12,44 @@ const client_ses_1 = require("@aws-sdk/client-ses");
 const supabase_js_1 = require("@supabase/supabase-js");
 const client_scheduler_1 = require("@aws-sdk/client-scheduler");
 const crypto_1 = __importDefault(require("crypto"));
+async function decryptRedis(encrypted) {
+    if (typeof window === "undefined") {
+        try {
+            const encoder = new TextEncoder();
+            const decoder = new TextDecoder();
+            // Define the fixed secret key for decryption
+            const secretKey = JSON.stringify({
+                secret: "DB",
+                provider: "redis",
+                APIKey: "some-api-key",
+            });
+            // Convert the Base64-encoded string back to a Uint8Array
+            const combined = Buffer.from(encrypted, "base64");
+            // Extract salt, IV, and ciphertext from the combined array
+            const salt = Uint8Array.from(combined.slice(0, 16));
+            const iv = combined.slice(16, 28);
+            const ciphertext = combined.slice(28);
+            // Create key material for PBKDF2
+            const keyMaterial = await crypto_1.default.subtle.importKey("raw", encoder.encode(secretKey), { name: "PBKDF2" }, false, ["deriveKey"]);
+            // Derive the decryption key using PBKDF2
+            const key = await crypto_1.default.subtle.deriveKey({
+                name: "PBKDF2",
+                salt: salt,
+                iterations: 310000,
+                hash: "SHA-256",
+            }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+            // Decrypt the ciphertext
+            const decrypted = await crypto_1.default.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+            // Return the decrypted plaintext as a string
+            return [decoder.decode(decrypted)];
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during decryption.";
+            return `Decryption failed: ${errorMessage}`;
+        }
+    }
+    return "This function must be run on the server.";
+}
 const handler = async (event) => {
     if (!process.env.NEXT_PUBLIC_PRODUCTION_URL || !process.env.NEXT_PUBLIC_PRODUCTION_AUTH_URL) {
         return {
@@ -41,6 +79,7 @@ const handler = async (event) => {
         SchedulerClient: client_scheduler_1.SchedulerClient,
         DeleteScheduleCommand: client_scheduler_1.DeleteScheduleCommand,
         crypto: crypto_1.default,
+        decryptRedis
     };
     const vm = new VM({
         timeout: 25000,
@@ -60,7 +99,7 @@ const handler = async (event) => {
             .replace("export const handler = async (event) => {", '') // Remove handler definition line
             .replace("};", ''); // Remove only the last closing `};`
         const wrappedCode = `  
-  const {  moment,Redis,SESClient,SendEmailCommand,createClient,SchedulerClient,DeleteScheduleCommand,crypto } = imports;
+  const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, crypto, decryptRedis } = imports;
 
   (async () => {
     try {
@@ -74,13 +113,16 @@ const handler = async (event) => {
 
       return result;
     } catch (error) {
-      const cleanErrorMessage = error.message.replace(/\\n/g, "\n").replace(/\\/g, '').replace(/\\/g, '');
-      return { statusCode: 400, body: cleanErrorMessage };
+      return { statusCode: 400, body: error.message };
     }
   })();
 `;
         // Execute the wrapped code in the VM
         const result = await vm.run(wrappedCode);
+        if (result?.statusCode !== 200) {
+            const cleanedError = result.body.replace(/\\n/g, "\n").replace(/\\/g, '').replace(/\\/g, '');
+            throw new Error(cleanedError);
+        }
         return {
             statusCode: 200,
             body: JSON.stringify(result),
@@ -92,7 +134,7 @@ const handler = async (event) => {
         return {
             statusCode: 500,
             body: JSON.stringify({
-                error: 'Failed to execute the code',
+                error: 'Failed to execute the code for VM-sendScheduledEmail',
                 details: errorMessage,
             }),
         };
