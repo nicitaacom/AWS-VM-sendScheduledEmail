@@ -66,8 +66,9 @@ async function decryptRedis(encrypted:string,scheduledEmailsKey:string) {
   
 
       // Create key material for PBKDF2
-      const keyMaterial = await crypto.subtle.importKey("raw",encoder.encode(secretKey),{ name: "PBKDF2" },false,["deriveKey"]
-      );
+      const keyMaterial = await crypto.subtle.importKey("raw",encoder.encode(secretKey),{ name: "PBKDF2" },false,[
+        "deriveKey"
+      ]);
   
       // Derive the decryption key using PBKDF2
       const key = await crypto.subtle.deriveKey(

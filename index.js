@@ -12,7 +12,9 @@ const client_ses_1 = require("@aws-sdk/client-ses");
 const supabase_js_1 = require("@supabase/supabase-js");
 const client_scheduler_1 = require("@aws-sdk/client-scheduler");
 const crypto_1 = __importDefault(require("crypto"));
-async function decryptRedis(encrypted) {
+// DO NOT use this function in VM - for some reason it work with resend but doesn't work with redis
+// I tried to change environment from node 22 to node 20 and ask chatGPT - useless
+async function decryptRedis(encrypted, scheduledEmailsKey) {
     if (typeof window === "undefined") {
         try {
             const encoder = new TextEncoder();
@@ -22,6 +24,7 @@ async function decryptRedis(encrypted) {
                 secret: "DB",
                 provider: "redis",
                 APIKey: "some-api-key",
+                scheduledEmailsKey
             });
             // Convert the Base64-encoded string back to a Uint8Array
             const combined = Buffer.from(encrypted, "base64");
@@ -30,7 +33,9 @@ async function decryptRedis(encrypted) {
             const iv = combined.slice(16, 28);
             const ciphertext = combined.slice(28);
             // Create key material for PBKDF2
-            const keyMaterial = await crypto_1.default.subtle.importKey("raw", encoder.encode(secretKey), { name: "PBKDF2" }, false, ["deriveKey"]);
+            const keyMaterial = await crypto_1.default.subtle.importKey("raw", encoder.encode(secretKey), { name: "PBKDF2" }, false, [
+                "deriveKey"
+            ]);
             // Derive the decryption key using PBKDF2
             const key = await crypto_1.default.subtle.deriveKey({
                 name: "PBKDF2",
