@@ -37,7 +37,7 @@ interface Event {
 
 // DO NOT use this function in VM - for some reason it work with resend but doesn't work with redis
 // I tried to change environment from node 22 to node 20 and ask chatGPT - useless
-async function decryptRedis(encrypted:string,scheduledEmailsKey:string) {
+async function decryptRedis(encrypted:string, scheduledEmailsKey:string) {
   if (typeof window === "undefined") {
     try {
 
@@ -209,6 +209,7 @@ try {
 } catch (error) {
   const errorMessage: string = (error as Error)?.message || 'An unexpected error occurred';
   console.error('Error executing code in VM:', errorMessage);
+  // NOTE: Do error handling with notifications IN auth server because in that way I can add new notification group
   return {
     statusCode: 500,
     body: JSON.stringify({
