@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.handler = void 0;
 const vm2_1 = __importDefault(require("vm2"));
 const { VM } = vm2_1.default;
+const resend_1 = require("resend"); // if env notification group is Email
 const ioredis_1 = __importDefault(require("ioredis"));
 const moment_timezone_1 = __importDefault(require("moment-timezone"));
 const client_ses_1 = require("@aws-sdk/client-ses");
@@ -73,6 +74,8 @@ const handler = async (event) => {
         throw new Error(`Error ${response.status}: ${errorMessage || "Unknown error"}`);
     }
     const responseData = await response.json();
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
     const imports = {
         moment: moment_timezone_1.default,
         Redis: ioredis_1.default,
@@ -82,6 +85,10 @@ const handler = async (event) => {
         SchedulerClient: client_scheduler_1.SchedulerClient,
         DeleteScheduleCommand: client_scheduler_1.DeleteScheduleCommand,
         crypto: crypto_1.default,
+        encoder,
+        decoder,
+        Resend: // required to decryptResend (if env notification group is Email)
+        resend_1.Resend,
         decryptRedis
     };
     const vm = new VM({
@@ -102,7 +109,9 @@ const handler = async (event) => {
             .replace("export const handler = async (event) => {", '') // Remove handler definition line
             .replace("};", ''); // Remove only the last closing `};`
         const wrappedCode = `  
-  const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, crypto, decryptRedis } = imports;
+  const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
+  crypto, encoder, decoder, Resend,
+  decryptRedis } = imports;
 
   (async () => {
     try {
@@ -134,6 +143,7 @@ const handler = async (event) => {
     catch (error) {
         const errorMessage = error?.message || 'An unexpected error occurred';
         console.error('Error executing code in VM:', errorMessage);
+        // NOTE: Do error handling with notifications IN auth server because in that way I can add new notification group
         return {
             statusCode: 500,
             body: JSON.stringify({

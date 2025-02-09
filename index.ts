@@ -1,6 +1,7 @@
 import VMModule from 'vm2';
 const { VM } = VMModule;
 
+import { Resend } from 'resend' // if env notification group is Email
 
 import Redis from 'ioredis';
 import moment from 'moment-timezone';
@@ -137,6 +138,10 @@ const responseData = await response.json();
 
 
 
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
+
+
 const imports = {
   moment,
   Redis,
@@ -145,7 +150,10 @@ const imports = {
   createClient,
   SchedulerClient,
   DeleteScheduleCommand,
-  crypto,
+  crypto, // required to decryptResend (if env notification group is Email) 
+  encoder, // required to decryptResend (if env notification group is Email)
+  decoder, // required to decryptResend (if env notification group is Email)
+  Resend, // required to send email (if env notification group is Email)
   decryptRedis
 }
 
@@ -173,7 +181,9 @@ try {
 
 
  const wrappedCode = `  
-  const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, crypto, decryptRedis } = imports;
+  const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
+  crypto, encoder, decoder, Resend,
+  decryptRedis } = imports;
 
   (async () => {
     try {

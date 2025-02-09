@@ -11,7 +11,8 @@
     "@aws-sdk/client-scheduler": "^3.670.0",
     "@aws-sdk/client-ses": "^3.734.0",
     "@supabase/supabase-js": "^2.39.0",
+    "moment-timezone": "^0.5.46",
     "ioredis": "^5.4.1",
-    "moment-timezone": "^0.5.46"
+    "resend": "^4.1.2"
   }
 }
