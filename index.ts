@@ -38,6 +38,66 @@ interface Event {
 
 // DO NOT use this function in VM - for some reason it work with resend but doesn't work with redis
 // I tried to change environment from node 22 to node 20 and ask chatGPT - useless
+async function decryptResend(encryptedResendEnvValue:string) {
+  try {
+    // Define encoder and decoder - these were missing in your original code
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    
+    const secretKey = JSON.stringify({
+      secret: "DB",
+      provider: "resend",
+      APIKey: "someAPIKeyHere",
+    })
+
+    // Decode base64 to Uint8Array
+    const encryptedData = Buffer.from(encryptedResendEnvValue, "base64")
+
+    // Extract the salt, iv, and encrypted content
+    const salt = encryptedData.slice(0, 16)
+    const iv = encryptedData.slice(16, 28)
+    const encrypted = encryptedData.slice(28)
+
+    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(secretKey), { name: "PBKDF2" }, false, [
+      "deriveKey",
+    ])
+
+    // Derive the key
+    const key = await crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: salt,
+        iterations: 310,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["decrypt"],
+    )
+
+    // Decrypt the data
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, encrypted)
+
+    // Parse the decrypted data as JSON to extract key-value object
+    const decodedText = decoder.decode(decrypted)
+    const result = JSON.parse(decodedText)
+
+    // Ensure the object contains only key and value fields
+    if (Object.keys(result).length !== 2 || !('key' in result) || !('value' in result)) {
+      return "error: decrypted object must contain only key and value fields"
+    }
+
+    return { key: result.key, value: result.value }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during decryption."
+    return `Decryption failed: ${errorMessage}`
+  }
+}
+
+
+// DO NOT use this function in VM - for some reason it work with resend but doesn't work with redis
+// I tried to change environment from node 22 to node 20 and ask chatGPT - useless
 async function decryptRedis(encrypted:string, scheduledEmailsKey:string) {
   if (typeof window === "undefined") {
     try {
@@ -67,8 +127,9 @@ async function decryptRedis(encrypted:string, scheduledEmailsKey:string) {
   
 
       // Create key material for PBKDF2
-      const keyMaterial = await crypto.subtle.importKey("raw",encoder.encode(secretKey),{ name: "PBKDF2" },false,["deriveKey"]
-      );
+      const keyMaterial = await crypto.subtle.importKey("raw",encoder.encode(secretKey),{ name: "PBKDF2" },false,[
+        "deriveKey"
+      ]);
   
       // Derive the decryption key using PBKDF2
       const key = await crypto.subtle.deriveKey(
@@ -154,7 +215,8 @@ const imports = {
   encoder, // required to decryptResend (if env notification group is Email)
   decoder, // required to decryptResend (if env notification group is Email)
   Resend, // required to send email (if env notification group is Email)
-  decryptRedis
+  decryptRedis,
+  decryptResend
 }
 
 
@@ -183,7 +245,7 @@ try {
  const wrappedCode = `  
   const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
   crypto, encoder, decoder, Resend,
-  decryptRedis } = imports;
+  decryptRedis, decryptResend } = imports;
 
   (async () => {
     try {
@@ -220,12 +282,12 @@ try {
   const errorMessage: string = (error as Error)?.message || 'An unexpected error occurred';
   console.error('Error executing code in VM:', errorMessage);
   // NOTE: Do error handling with notifications IN auth server because in that way I can add new notification group
-  return {
-    statusCode: 500,
-    body: JSON.stringify({
-      error: 'Failed to execute the code for VM-sendScheduledEmail',
-      details: errorMessage,
-    }),
-  }
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: 'Failed to execute the code for VM-sendScheduledEmail',
+        details: errorMessage,
+      }),
+    }
   }
 };
