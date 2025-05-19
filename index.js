@@ -154,50 +154,93 @@ const handler = async (event) => {
         const transformedCode = responseData.code
             // Remove the export handler function line, adjusting to potentially varying spaces
             .replace("export const handler = async (event) => {", '') // Remove handler definition line
-            .replace("};", ''); // Remove only the last closing `};`
+            .replace("};", ''); // Remove only the last closing `}`;
         const wrappedCode = `  
   const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
-  crypto, encoder, decoder, Resend,
-  decryptRedis, decryptResend } = imports;
+  crypto, encoder, decoder, Resend, decryptRedis, decryptResend } = imports;
 
   (async () => {
     try {
       const result = await (async () => { 
         ${transformedCode} 
       })();
-
-      if (result?.statusCode !== 200) {
-        throw new Error(result.body);
-      }
-
       return result;
     } catch (error) {
-      return { statusCode: 400, body: error.message };
+      const errorResponse = {
+        statusCode: 500,
+        error: 'Failed to execute the code for VM-sendScheduledEmail'
+      };
+      
+      if (error.message) {
+        const lines = error.message.split('\\n');
+        errorResponse.errorSummary = lines[0];
+        
+        lines.slice(1).forEach((line, idx) => {
+          if (line.trim()) {
+            errorResponse['errorInfo' + (idx + 1)] = line.trim();
+          }
+        });
+      }
+      
+      if (error.stack) {
+        const stackLines = error.stack.split('\\n');
+        stackLines.forEach((line, idx) => {
+          errorResponse['stackInfo' + (idx + 1)] = line.trim();
+        });
+      }
+      
+      return errorResponse;
     }
   })();
-`;
+  `;
         // Execute the wrapped code in the VM
         const result = await vm.run(wrappedCode);
-        if (result?.statusCode !== 200) {
-            const cleanedError = result.body.replace(/\\n/g, "\n").replace(/\\/g, '').replace(/\\/g, '');
-            throw new Error(cleanedError);
+        // Handle successful result
+        if (result?.statusCode === 200) {
+            return {
+                statusCode: 200,
+                ...result
+            };
         }
-        return {
-            statusCode: 200,
-            body: JSON.stringify(result),
+        // Format error stack if available
+        let errorResponse = {
+            statusCode: 500,
+            error: 'Failed to execute the code for VM-sendScheduledEmail'
         };
+        // Handle error response
+        if (result) {
+            // Copy all properties from result
+            Object.keys(result).forEach((key) => {
+                errorResponse[key] = result[key];
+            });
+        }
+        return errorResponse;
     }
     catch (error) {
-        const errorMessage = error?.message || 'An unexpected error occurred';
-        console.error('Error executing code in VM:', errorMessage);
-        // NOTE: Do error handling with notifications IN auth server because in that way I can add new notification group
-        return {
+        console.error('Error executing code in VM:', error);
+        // Create base error response
+        const errorResponse = {
             statusCode: 500,
-            body: JSON.stringify({
-                error: 'Failed to execute the code for VM-sendScheduledEmail',
-                details: errorMessage,
-            }),
+            error: 'Failed to execute the code for VM-sendScheduledEmail'
         };
+        // Format error message
+        if (error?.message) {
+            const messageLines = error.message.split('\n');
+            errorResponse.errorSummary = messageLines[0];
+            messageLines.slice(1).forEach((line, idx) => {
+                if (line.trim()) {
+                    errorResponse[`errorInfo${idx + 1}`] = line.trim();
+                }
+            });
+        }
+        // Format stack trace
+        if (error?.stack) {
+            const stackLines = error.stack.split('\n');
+            stackLines.forEach((line, idx) => {
+                errorResponse[`stackInfo${idx + 1}`] = line.trim();
+            });
+        }
+        return errorResponse;
     }
 };
 exports.handler = handler;
