@@ -5,7 +5,7 @@ import { Resend } from 'resend' // if env notification group is Email
 
 import Redis from 'ioredis';
 import moment from 'moment-timezone';
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
 
 import { createClient } from "@supabase/supabase-js"
 import { SchedulerClient, DeleteScheduleCommand } from "@aws-sdk/client-scheduler";
@@ -207,7 +207,7 @@ const imports = {
   moment,
   Redis,
   SESClient,
-  SendEmailCommand,
+  SendRawEmailCommand,
   createClient,
   SchedulerClient,
   DeleteScheduleCommand,
@@ -243,7 +243,7 @@ const vm = new VM({
   
     
   const wrappedCode = `  
-  const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
+  const { moment, Redis, SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
   crypto, encoder, decoder, Resend, decryptRedis, decryptResend } = imports;
 
   (async () => {

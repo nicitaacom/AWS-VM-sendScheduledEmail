@@ -126,7 +126,7 @@ const handler = async (event) => {
         moment: moment_timezone_1.default,
         Redis: ioredis_1.default,
         SESClient: client_ses_1.SESClient,
-        SendEmailCommand: client_ses_1.SendEmailCommand,
+        SendRawEmailCommand: client_ses_1.SendRawEmailCommand,
         createClient: supabase_js_1.createClient,
         SchedulerClient: client_scheduler_1.SchedulerClient,
         DeleteScheduleCommand: client_scheduler_1.DeleteScheduleCommand,
@@ -156,7 +156,7 @@ const handler = async (event) => {
             .replace("export const handler = async (event) => {", '') // Remove handler definition line
             .replace("};", ''); // Remove only the last closing `}`;
         const wrappedCode = `  
-  const { moment, Redis, SESClient, SendEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
+  const { moment, Redis, SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
   crypto, encoder, decoder, Resend, decryptRedis, decryptResend } = imports;
 
   (async () => {
