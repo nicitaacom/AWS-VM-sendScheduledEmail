@@ -1,8 +1,8 @@
 {
   "description": "This is code that fetch code and execute it",
   "scripts": {
-    "build": "tsc && zip -r VM-sendScheduledEmail.zip node_modules index.js"
- },
+    "build": "rm -rf VM-sendScheduledEmail.zip && tsc && zip -r VM-sendScheduledEmail.zip node_modules index.js"
+  },
   "devDependencies": {
     "@types/mailparser": "^3.4.5",
     "@types/node": "^22.15.19",
@@ -15,7 +15,6 @@
     "@supabase/supabase-js": "^2.39.0",
     "ioredis": "^5.4.1",
     "moment-timezone": "^0.5.46",
-    "resend": "^4.1.2",
     "vm2": "^3.9.16"
   }
 }

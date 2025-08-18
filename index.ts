@@ -1,7 +1,6 @@
 import VMModule from 'vm2';
 const { VM } = VMModule;
 
-import { Resend } from 'resend' // if env notification group is Email
 
 import Redis from 'ioredis';
 import moment from 'moment-timezone';
@@ -9,7 +8,6 @@ import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
 
 import { createClient } from "@supabase/supabase-js"
 import { SchedulerClient, DeleteScheduleCommand } from "@aws-sdk/client-scheduler";
-import crypto from "crypto"
 
 
 
@@ -36,67 +34,8 @@ interface Event {
 }
 
 
-// DO NOT use this function in VM - for some reason it work with resend but doesn't work with redis
-// I tried to change environment from node 22 to node 20 and ask chatGPT - useless
-async function decryptResend(encryptedResendEnvValue:string) {
-  try {
-    // Define encoder and decoder - these were missing in your original code
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    
-    const secretKey = JSON.stringify({
-      secret: "DB",
-      provider: "resend",
-      APIKey: "someAPIKeyHere",
-    })
 
-    // Decode base64 to Uint8Array
-    const encryptedData = Buffer.from(encryptedResendEnvValue, "base64")
-
-    // Extract the salt, iv, and encrypted content
-    const salt = encryptedData.slice(0, 16)
-    const iv = encryptedData.slice(16, 28)
-    const encrypted = encryptedData.slice(28)
-
-    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(secretKey), { name: "PBKDF2" }, false, [
-      "deriveKey",
-    ])
-
-    // Derive the key
-    const key = await crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: salt,
-        iterations: 310,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["decrypt"],
-    )
-
-    // Decrypt the data
-    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, encrypted)
-
-    // Parse the decrypted data as JSON to extract key-value object
-    const decodedText = decoder.decode(decrypted)
-    const result = JSON.parse(decodedText)
-
-    // Ensure the object contains only key and value fields
-    if (Object.keys(result).length !== 2 || !('key' in result) || !('value' in result)) {
-      return "error: decrypted object must contain only key and value fields"
-    }
-
-    return { key: result.key, value: result.value }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during decryption."
-    return `Decryption failed: ${errorMessage}`
-  }
-}
-
-
-// DO NOT use this function in VM - for some reason it work with resend but doesn't work with redis
+// DO NOT use this function in VM - for some reason it work with smth else but doesn't work with redis
 // I tried to change environment from node 22 to node 20 and ask chatGPT - useless
 async function decryptRedis(encrypted:string, scheduledEmailsKey:string) {
   if (typeof window === "undefined") {
@@ -198,11 +137,6 @@ if (!response.ok) {
 const responseData = await response.json();
 
 
-
-const encoder = new TextEncoder()
-const decoder = new TextDecoder()
-
-
 const imports = {
   moment,
   Redis,
@@ -211,12 +145,7 @@ const imports = {
   createClient,
   SchedulerClient,
   DeleteScheduleCommand,
-  crypto, // required to decryptResend (if env notification group is Email) 
-  encoder, // required to decryptResend (if env notification group is Email)
-  decoder, // required to decryptResend (if env notification group is Email)
-  Resend, // required to send email (if env notification group is Email)
   decryptRedis,
-  decryptResend
 }
 
 
@@ -243,8 +172,8 @@ const vm = new VM({
   
     
   const wrappedCode = `  
-  const { moment, Redis, SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
-  crypto, encoder, decoder, Resend, decryptRedis, decryptResend } = imports;
+  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
+  decryptRedis } = imports;
 
   (async () => {
     try {
