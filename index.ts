@@ -146,6 +146,7 @@ const imports = {
   SchedulerClient,
   DeleteScheduleCommand,
   decryptRedis,
+  setTimeout
 }
 
 
@@ -173,7 +174,7 @@ const vm = new VM({
     
   const wrappedCode = `  
   const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
-  decryptRedis } = imports;
+  decryptRedis, setTimeout } = imports;
 
   (async () => {
     try {

@@ -83,6 +83,7 @@ const handler = async (event) => {
         SchedulerClient: client_scheduler_1.SchedulerClient,
         DeleteScheduleCommand: client_scheduler_1.DeleteScheduleCommand,
         decryptRedis,
+        setTimeout
     };
     const vm = new VM({
         timeout: 25000,
@@ -103,7 +104,7 @@ const handler = async (event) => {
             .replace("};", ''); // Remove only the last closing `}`;
         const wrappedCode = `  
   const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
-  decryptRedis } = imports;
+  decryptRedis, setTimeout } = imports;
 
   (async () => {
     try {
