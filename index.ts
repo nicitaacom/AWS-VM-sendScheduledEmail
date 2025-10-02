@@ -1,13 +1,13 @@
 import VMModule from 'vm2';
 const { VM } = VMModule;
 
+import crypto from "crypto"
 
 import Redis from 'ioredis';
 import moment from 'moment-timezone';
 import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
-
-import { createClient } from "@supabase/supabase-js"
 import { SchedulerClient, DeleteScheduleCommand } from "@aws-sdk/client-scheduler";
+import { createClient } from "@supabase/supabase-js"
 
 
 
@@ -145,6 +145,7 @@ const imports = {
   createClient,
   SchedulerClient,
   DeleteScheduleCommand,
+  crypto,
   decryptRedis,
   setTimeout
 }
@@ -173,7 +174,7 @@ const vm = new VM({
   
     
   const wrappedCode = `  
-  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand,
+  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, crypto,
   decryptRedis, setTimeout } = imports;
 
   (async () => {
@@ -209,7 +210,8 @@ const vm = new VM({
       return errorResponse;
     }
   })();
-  `;
+  `
+    
   // Execute the wrapped code in the VM
   const result = await vm.run(wrappedCode);
   
@@ -225,47 +227,47 @@ const vm = new VM({
   let errorResponse: Record<string, any> = {
     statusCode: 500,
     error: 'Failed to execute the code for VM-sendScheduledEmail'
-  };
+  }
   
   // Handle error response
   if (result) {
     // Copy all properties from result
     Object.keys(result).forEach((key: string) => {
-      errorResponse[key] = result[key];
-    });
+      errorResponse[key] = result[key]
+    })
   }
   
   return errorResponse;
 
-} catch (error: unknown) {
-  console.error('Error executing code in VM:', error);
-  
-  // Create base error response
-  const errorResponse: Record<string, any> = {
-    statusCode: 500,
-    error: 'Failed to execute the code for VM-sendScheduledEmail'
-  };
-  
-  // Format error message
-  if ((error as Error)?.message) {
-    const messageLines = (error as Error).message.split('\n');
-    errorResponse.errorSummary = messageLines[0];
+  } catch (error: unknown) {
+    console.error('Error executing code in VM:', error);
     
-    messageLines.slice(1).forEach((line: string, idx: number) => {
-      if (line.trim()) {
-        errorResponse[`errorInfo${idx + 1}`] = line.trim();
-      }
-    });
+    // Create base error response
+    const errorResponse: Record<string, any> = {
+      statusCode: 500,
+      error: 'Failed to execute the code for VM-sendScheduledEmail'
+    }
+    
+    // Format error message
+    if ((error as Error)?.message) {
+      const messageLines = (error as Error).message.split('\n');
+      errorResponse.errorSummary = messageLines[0];
+      
+      messageLines.slice(1).forEach((line: string, idx: number) => {
+        if (line.trim()) {
+          errorResponse[`errorInfo${idx + 1}`] = line.trim();
+        }
+      });
+    }
+    
+    // Format stack trace
+    if ((error as Error)?.stack) {
+      const stackLines = (error as Error).stack!.split('\n');
+      stackLines.forEach((line: string, idx: number) => {
+        errorResponse[`stackInfo${idx + 1}`] = line.trim();
+      });
+    }
+    
+    return errorResponse;
   }
-  
-  // Format stack trace
-  if ((error as Error)?.stack) {
-    const stackLines = (error as Error).stack!.split('\n');
-    stackLines.forEach((line: string, idx: number) => {
-      errorResponse[`stackInfo${idx + 1}`] = line.trim();
-    });
-  }
-  
-  return errorResponse;
-}
 };
