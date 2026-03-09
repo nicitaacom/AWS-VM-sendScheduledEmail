@@ -12,49 +12,6 @@ const moment_timezone_1 = __importDefault(require("moment-timezone"));
 const client_ses_1 = require("@aws-sdk/client-ses");
 const client_scheduler_1 = require("@aws-sdk/client-scheduler");
 const supabase_js_1 = require("@supabase/supabase-js");
-// DO NOT use this function in VM - for some reason it work with smth else but doesn't work with redis
-// I tried to change environment from node 22 to node 20 and ask chatGPT - useless
-async function decryptRedis(encrypted, scheduledEmailsKey) {
-    if (typeof window === "undefined") {
-        try {
-            const encoder = new TextEncoder();
-            const decoder = new TextDecoder();
-            // Define the fixed secret key for decryption
-            const secretKey = JSON.stringify({
-                secret: "DB",
-                provider: "redis",
-                APIKey: "some-api-key",
-                scheduledEmailsKey
-            });
-            // Convert the Base64-encoded string back to a Uint8Array
-            const combined = Buffer.from(encrypted, "base64");
-            // Extract salt, IV, and ciphertext from the combined array
-            const salt = Uint8Array.from(combined.slice(0, 16));
-            const iv = combined.slice(16, 28);
-            const ciphertext = combined.slice(28);
-            // Create key material for PBKDF2
-            const keyMaterial = await crypto_1.default.subtle.importKey("raw", encoder.encode(secretKey), { name: "PBKDF2" }, false, [
-                "deriveKey"
-            ]);
-            // Derive the decryption key using PBKDF2
-            const key = await crypto_1.default.subtle.deriveKey({
-                name: "PBKDF2",
-                salt: salt,
-                iterations: 310,
-                hash: "SHA-256",
-            }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
-            // Decrypt the ciphertext
-            const decrypted = await crypto_1.default.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
-            // Return the decrypted plaintext as a string
-            return [decoder.decode(decrypted)];
-        }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during decryption.";
-            return `Decryption failed: ${errorMessage}`;
-        }
-    }
-    return "This function must be run on the server.";
-}
 const handler = async (event) => {
     if (!process.env.NEXT_PUBLIC_PRODUCTION_URL || !process.env.NEXT_PUBLIC_PRODUCTION_AUTH_URL) {
         return {
@@ -84,7 +41,6 @@ const handler = async (event) => {
         SchedulerClient: client_scheduler_1.SchedulerClient,
         DeleteScheduleCommand: client_scheduler_1.DeleteScheduleCommand,
         crypto: crypto_1.default,
-        decryptRedis,
         setTimeout
     };
     const vm = new VM({
@@ -106,7 +62,7 @@ const handler = async (event) => {
             .replace("};", ''); // Remove only the last closing `}`;
         const wrappedCode = `  
   const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, crypto,
-  decryptRedis, setTimeout } = imports;
+   setTimeout } = imports;
 
   (async () => {
     try {

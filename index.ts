@@ -35,73 +35,6 @@ interface Event {
 
 
 
-// DO NOT use this function in VM - for some reason it work with smth else but doesn't work with redis
-// I tried to change environment from node 22 to node 20 and ask chatGPT - useless
-async function decryptRedis(encrypted:string, scheduledEmailsKey:string) {
-  if (typeof window === "undefined") {
-    try {
-
-      const encoder = new TextEncoder()
-      const decoder = new TextDecoder()
-
-
-      // Define the fixed secret key for decryption
-      const secretKey = JSON.stringify({
-        secret: "DB",
-        provider: "redis",
-        APIKey: "some-api-key",
-        scheduledEmailsKey
-      })
-
-      // Convert the Base64-encoded string back to a Uint8Array
-      const combined = Buffer.from(encrypted, "base64");
-
-
-      // Extract salt, IV, and ciphertext from the combined array
-     const salt = Uint8Array.from(combined.slice(0, 16));
-     const iv = combined.slice(16, 28);
-     const ciphertext = combined.slice(28);
-
-
-  
-
-      // Create key material for PBKDF2
-      const keyMaterial = await crypto.subtle.importKey("raw",encoder.encode(secretKey),{ name: "PBKDF2" },false,[
-        "deriveKey"
-      ]);
-  
-      // Derive the decryption key using PBKDF2
-      const key = await crypto.subtle.deriveKey(
-        {
-          name: "PBKDF2",
-          salt: salt,
-          iterations: 310,
-          hash: "SHA-256",
-        },
-        keyMaterial,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["decrypt"]
-      );
-
-      // Decrypt the ciphertext
-      const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        key,
-        ciphertext
-      );
-
-      // Return the decrypted plaintext as a string
-      return [decoder.decode(decrypted)]
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during decryption.";
-      return `Decryption failed: ${errorMessage}`
-    }
-  }
-  return "This function must be run on the server."
-}
-
-
 
 
 
@@ -146,7 +79,6 @@ const imports = {
   SchedulerClient,
   DeleteScheduleCommand,
   crypto,
-  decryptRedis,
   setTimeout
 }
 
@@ -175,7 +107,7 @@ const vm = new VM({
     
   const wrappedCode = `  
   const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, crypto,
-  decryptRedis, setTimeout } = imports;
+   setTimeout } = imports;
 
   (async () => {
     try {
