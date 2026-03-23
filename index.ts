@@ -1,13 +1,21 @@
 import VMModule from 'vm2';
 const { VM } = VMModule;
 
-import crypto from "crypto"
-
 import Redis from 'ioredis';
 import moment from 'moment-timezone';
 import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
 import { SchedulerClient, DeleteScheduleCommand } from "@aws-sdk/client-scheduler";
 import { createClient } from "@supabase/supabase-js"
+
+
+// Node related
+import { Buffer } from "buffer"
+import { URLSearchParams } from "url"
+
+
+// For freeEmailDomains - so I fetch from entiryRedis envs by correct userId (if sent from gmail cuz user.email domain might be ukr.net)
+import { readFileSync } from "fs"
+import path from "path"
 
 
 const NEXT_PUBLIC_PRODUCTION_URL = "https://www.outreach-tool.com/"
@@ -73,6 +81,17 @@ if (!response.ok) {
 const responseData = await response.json();
 
 
+  // 📁 Works because CommonJS has __dirname by default
+  const filePath = path.join(__dirname, "freeEmailList.txt")
+
+  const freeEmailDomains = readFileSync(filePath, "utf-8")
+    .split("\n")
+    .map(domain => domain.trim().toLowerCase())
+    .filter(Boolean) // remove empty lines
+
+  
+
+
 const imports = {
   moment,
   Redis,
@@ -81,8 +100,7 @@ const imports = {
   createClient,
   SchedulerClient,
   DeleteScheduleCommand,
-  crypto,
-  setTimeout
+  freeEmailDomains
 }
 
 
@@ -93,9 +111,14 @@ const vm = new VM({
     process: {
       env: {...process.env},
     },
-    fetch, // Pass fetch to the sandbox
-    event, // Pass the event to the VM sandbox
-    imports
+      // Node related
+      setTimeout,
+      Buffer, // required for twilio Authorization token
+      URLSearchParams,
+      fetch, // Pass fetch to the sandbox
+
+      event, // Pass the event to the VM sandbox
+      imports
   },
 });
 
@@ -109,8 +132,7 @@ const vm = new VM({
   
     
   const wrappedCode = `  
-  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, crypto,
-   setTimeout } = imports;
+  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, freeEmailDomains } = imports;
 
   (async () => {
     try {
