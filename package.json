@@ -1,7 +1,7 @@
 {
   "description": "This is code that fetch code and execute it",
   "scripts": {
-    "build": "rm -rf VM-sendScheduledEmail.zip && tsc && zip -r VM-sendScheduledEmail.zip node_modules index.js"
+    "build": "rm -rf VM-sendScheduledEmail.zip && tsc && zip -r VM-sendScheduledEmail.zip freeEmailList.txt node_modules index.js"
   },
   "devDependencies": {
     "@types/mailparser": "^3.4.5",
