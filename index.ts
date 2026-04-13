@@ -11,6 +11,7 @@ import { createClient } from "@supabase/supabase-js"
 // Node related
 import { Buffer } from "buffer"
 import { URLSearchParams } from "url"
+import { URL } from "url"
 
 
 // For freeEmailDomains - so I fetch from entiryRedis envs by correct userId (if sent from gmail cuz user.email domain might be ukr.net)
@@ -115,6 +116,7 @@ const vm = new VM({
       setTimeout,
       Buffer, // required for twilio Authorization token
       URLSearchParams,
+      URL,
       fetch, // Pass fetch to the sandbox
 
       event, // Pass the event to the VM sandbox

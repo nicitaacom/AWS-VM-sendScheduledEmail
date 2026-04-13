@@ -14,6 +14,7 @@ const supabase_js_1 = require("@supabase/supabase-js");
 // Node related
 const buffer_1 = require("buffer");
 const url_1 = require("url");
+const url_2 = require("url");
 // For freeEmailDomains - so I fetch from entiryRedis envs by correct userId (if sent from gmail cuz user.email domain might be ukr.net)
 const fs_1 = require("fs");
 const path_1 = __importDefault(require("path"));
@@ -66,6 +67,7 @@ const handler = async (event) => {
             Buffer: buffer_1.Buffer,
             URLSearchParams: // required for twilio Authorization token
             url_1.URLSearchParams,
+            URL: url_2.URL,
             fetch,
             event,
             imports
