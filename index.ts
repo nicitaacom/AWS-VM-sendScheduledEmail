@@ -144,38 +144,13 @@ const vm = new VM({
   const wrappedCode = `  
   const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, freeEmailDomains } = imports;
 
+  // do not wrap it in try catch - otherwise you would just return statusCode: 500 so vm.run() RESOLVES (not rejects) with statusCode: 500
+  // so it means if it not rejected - .catch block never reached - means no dis debug msg sent
   (async () => {
-    try {
-      const result = await (async () => { 
-        ${transformedCode} 
-      })();
-      return result;
-    } catch (error) {
-      const errorResponse = {
-        statusCode: 500,
-        error: 'Failed to execute the code for VM-sendScheduledEmail'
-      };
-      
-      if (error.message) {
-        const lines = error.message.split('\\n');
-        errorResponse.errorSummary = lines[0];
-        
-        lines.slice(1).forEach((line, idx) => {
-          if (line.trim()) {
-            errorResponse['errorInfo' + (idx + 1)] = line.trim();
-          }
-        });
-      }
-      
-      if (error.stack) {
-        const stackLines = error.stack.split('\\n');
-        stackLines.forEach((line, idx) => {
-          errorResponse['stackInfo' + (idx + 1)] = line.trim();
-        });
-      }
-      
-      return errorResponse;
-    }
+    const result = await (async () => { 
+      ${transformedCode} 
+    })();
+    return result;
   })();
   `
     
