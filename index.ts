@@ -5,7 +5,9 @@ import Redis from 'ioredis';
 import moment from 'moment-timezone';
 import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
 import { SchedulerClient, DeleteScheduleCommand } from "@aws-sdk/client-scheduler";
+
 import { createClient } from "@supabase/supabase-js"
+import PusherServer from "pusher"
 
 
 // Node related
@@ -101,6 +103,7 @@ const imports = {
   createClient,
   SchedulerClient,
   DeleteScheduleCommand,
+  PusherServer,
   freeEmailDomains
 }
 
@@ -142,7 +145,7 @@ const vm = new VM({
   
     
   const wrappedCode = `  
-  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, freeEmailDomains } = imports;
+  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, PusherServer, freeEmailDomains } = imports;
 
   // do not wrap it in try catch - otherwise you would just return statusCode: 500 so vm.run() RESOLVES (not rejects) with statusCode: 500
   // so it means if it not rejected - .catch block never reached - means no dis debug msg sent

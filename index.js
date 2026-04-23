@@ -11,6 +11,7 @@ const moment_timezone_1 = __importDefault(require("moment-timezone"));
 const client_ses_1 = require("@aws-sdk/client-ses");
 const client_scheduler_1 = require("@aws-sdk/client-scheduler");
 const supabase_js_1 = require("@supabase/supabase-js");
+const pusher_1 = __importDefault(require("pusher"));
 // Node related
 const buffer_1 = require("buffer");
 const url_1 = require("url");
@@ -54,6 +55,7 @@ const handler = async (event) => {
         createClient: supabase_js_1.createClient,
         SchedulerClient: client_scheduler_1.SchedulerClient,
         DeleteScheduleCommand: client_scheduler_1.DeleteScheduleCommand,
+        PusherServer: pusher_1.default,
         freeEmailDomains
     };
     const vm = new VM({
@@ -86,7 +88,7 @@ const handler = async (event) => {
     const sendFnMatch = transformedCode.match(/const sendDiscordDebugMessage\s*=\s*async\s*\(errorMessage\)\s*=>\s*\{[\s\S]*?return true\s*\}/);
     const getPartsFnMatch = transformedCode.match(/const getDiscordMessageParts\s*=\s*\(processedMessage,\s*headerLines(?:,\s*note)?\)\s*=>\s*\{[\s\S]*?return messageParts\s*\}/);
     const wrappedCode = `  
-  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, freeEmailDomains } = imports;
+  const { moment, Redis ,SESClient, SendRawEmailCommand, createClient, SchedulerClient, DeleteScheduleCommand, PusherServer, freeEmailDomains } = imports;
 
   // do not wrap it in try catch - otherwise you would just return statusCode: 500 so vm.run() RESOLVES (not rejects) with statusCode: 500
   // so it means if it not rejected - .catch block never reached - means no dis debug msg sent
